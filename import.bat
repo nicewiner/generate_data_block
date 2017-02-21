@@ -1,0 +1,1 @@
+python block_setting.py -start_date=20100101 -end_date=20160101 -instruments=if0001,if0002

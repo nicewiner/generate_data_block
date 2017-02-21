@@ -38,13 +38,13 @@ class block_config_api(object):
         return map(lambda x: int(x.split('_')[-1]),keys)
 
     def cmp(self,pydict):
-        ids = self.list_ids
+        ids = self.list_ids()
         for id in ids:
             db_pydict = self.get_id(id)
             equal = True
             for ikey,ival in pydict.iteritems():
                 vval = db_pydict[ikey]
-                if collections.Iterable(ival):
+                if isinstance(vval,collections.Iterable):
                     re = cmp(sorted(ival),sorted(vval))
                     if re != 0:
                         equal = False

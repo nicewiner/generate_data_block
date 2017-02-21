@@ -37,9 +37,13 @@ def check_db(arg_dict):
         return re
     elif re == -1:
         exist_ids = set(db_api.list_ids()) 
-        new_id = set(range(exist_ids[-1]+1)) - exist_ids
+        if len(exist_ids) > 0:
+            new_id = set(range(max(exist_ids))) - exist_ids
+        else:
+            new_id = 0
         db_api.set_id(new_id,arg_dict)
         return new_id
+    
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -52,7 +56,6 @@ if __name__ == '__main__':
     parser.add_argument('-instruments',dest = 'instruments',nargs = '?',type = str)
     args = parser.parse_args()
     arg_dict = vars(args)
-    print arg_dict
 
     if verify(arg_dict) is False:
         print 'input format error'
@@ -62,5 +65,7 @@ if __name__ == '__main__':
     arg_dict['indicators'] = get_indicator_list(arg_dict['indicators'])
     arg_dict['instruments'] = get_instrument_list(arg_dict['instruments'])
     print arg_dict
-
+    
+    id = check_db(arg_dict)
+    print 'dispathed id = ',id
     

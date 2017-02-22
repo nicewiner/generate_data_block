@@ -38,7 +38,7 @@ def check_db(arg_dict):
     elif re == -1:
         exist_ids = set(db_api.list_ids()) 
         if len(exist_ids) > 0:
-            new_id = set(range(max(exist_ids))) - exist_ids
+            new_id = [ i for i in range(max(exist_ids) + 2) if i not in exist_ids][0]
         else:
             new_id = 0
         db_api.set_id(new_id,arg_dict)

@@ -1,6 +1,8 @@
 import os
 import block_config
 import argparse
+import copy
+from block_config import Dates
 
 basic_indicators = ['LastPrice','TradeVolume','BidPrice','BidVolume','AskPrice','AskVolume','OpenInterest']
 
@@ -18,11 +20,22 @@ def verify(arg_dict):
     if len(arg_dict['instruments']) < 1:
         return -3 
     
+    dates = Dates()
+    if dates.get_first_bigger_than( arg_dict['start_date'] ) is None:
+        return -4
+    if dates.get_first_less_than( arg_dict['end_date'] ) is None:
+        return -4
+    
+    return 0
+    
 def get_indicator_list(input_inds):
+    inds = set(copy.deepcopy(basic_indicators))
     if input_inds is not None:
-        return basic_indicators.extend(input_inds.split(','))
+        for i in input_inds.split(','):
+            inds.add(i)
+        return list(inds)
     else:
-        return basic_indicators
+        return list(inds)
 
 def get_instrument_list(input_inss):
     if input_inss is not None:
@@ -30,9 +43,9 @@ def get_instrument_list(input_inss):
     else:
         return []
     
-def check_db(arg_dict):
+def check_or_add_db(arg_dict):
     db_api = block_config.block_config_api()
-    re = db_api.cmp(arg_dict)
+    re = db_api.belong_to(arg_dict)
     if re != -1:
         return re
     elif re == -1:
@@ -57,15 +70,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
     arg_dict = vars(args)
 
-    if verify(arg_dict) is False:
+    if verify(arg_dict) < 0:
         print 'input format error'
-        exit()
+        exit(-1)
 
     adjust = int(arg_dict['adjust'])
     arg_dict['indicators'] = get_indicator_list(arg_dict['indicators'])
     arg_dict['instruments'] = get_instrument_list(arg_dict['instruments'])
-    print arg_dict
+    print 'arg_dict = ',arg_dict
     
-    id = check_db(arg_dict)
+    id = check_or_add_db(arg_dict)
     print 'dispathed id = ',id
     

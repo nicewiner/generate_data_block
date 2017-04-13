@@ -1,1 +1,1 @@
-python block_setting.py -start_date=20110103 -end_date=20160101 -type=future -level=tick -adjust=0 -instruments=if0001,if0002 -indicators=LastPrice,TradeVolume
+python write_block.py -start_date=20110103 -end_date=20160101 -type=future -level=tick -adjust=0 -instruments=if0001,if0002 -indicators=LastPrice,TradeVolume

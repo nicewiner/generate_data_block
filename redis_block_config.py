@@ -134,7 +134,7 @@ if __name__ == '__main__':
     
     ##Test db
     '''try set'''
-    text = {'level':'tick','type':'future','adjust':0,'start_date':20160101,'end_date':20160102,'indicators':["LastPrice","TradedVolume"],'instruments':['if0001','if0002']}
+    text = {'level':'tick','type':'future','adjust':0,'start_date':20160101,'end_date':20160102,'indicators':["LastPrice","Volume"],'instruments':['if0001','if0002']}
     dbapi = block_config_api()
     dbapi.set_id(0,text)
     

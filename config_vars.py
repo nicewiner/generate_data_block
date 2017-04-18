@@ -12,7 +12,37 @@ class GlobalVar(object):
     
     def __init__(self):
         self.basic_path = r'E:\autoBackTest'
+
+
+##Add a constraint here, cffex instruments can not go along with others 
+##Their trading rules, timestamp are all different
+class CFFEXBreak(dbBase.DB_BASE):
     
+    def __init__(self):
+        db_name,table_name = 'config','break_cffex'
+        super(CFFEXBreak,self).__init__(db_name)
+        
+        self.table_struct = Table(table_name,self.meta,
+             Column('type',String(20),primary_key = True),
+             Column('spots_perday',Integer),
+             Column('spots_interval',Integer),
+             Column('break_spots',String(100)),
+             Column('break_millis',String(100)),
+            )
+        
+        self.commodity_info_obj = self.quick_map(self.table_struct)
+        
+    def set_value(self,type,spots_perday,spots_interval,break_spots,break_millis):
+        self.insert_listlike(self.commodity_info_obj,(type,spots_perday,spots_interval,break_spots,break_millis))
+    
+    def get_value(self,stype = 'tick'):
+        ss = self.get_session()
+        records = ss.query(self.commodity_info_obj).filter_by(type = stype).first()
+        if records:
+            ret = records.type,records.spots_perday,records.spots_interval,records.break_spots,records.break_millis
+        ss.close()
+        return ret
+   
 class CommodityInfo(dbBase.DB_BASE):
     
     def __init__(self):
@@ -148,17 +178,28 @@ class IndicatorIDs(object):
             newdict[''.join(k.split('_'))] = v
             newdict[str.lower(''.join(k.split('_')))] = v
         return newdict
-            
-if __name__ == '__main__':
-    
+
+def test_ids():
+    ##check IDs
     indIDs = IndicatorIDs()
     print indIDs.other_map
     print indIDs.tick_map
     print indIDs.trade_type_map
     print indIDs.trend_type_map
     
+def test_info_struct():
+    ##check commInfo
     comInfo = CommodityInfo()
     print comInfo.get_column_names(comInfo.commodity_info_obj)
     inVals = '''110010001    11    IF0001    33300000    54900000    500    20130108    20130711    300    1    -9999    -9999    11    -9999    1    41400000    41400000    0    10    -9999    0.12    0.15    0.2    0.000025    0    1    0    0.1    0.1    0.1'''.split()
     comInfo.insert_listlike(comInfo.commodity_info_obj,inVals)
+
+def test_break_info():
+    ##set break info
+    breakinfo = CFFEXBreak()
+    breakinfo.set_value('tick', 32402, 500, '0,16203', '33300000,46800000')
+    print breakinfo.get_value('tick')
+    
+if __name__ == '__main__':
+    test_break_info()
     

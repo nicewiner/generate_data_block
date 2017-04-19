@@ -8,7 +8,7 @@ from future_mysql import dbBase
 
 from sqlalchemy import Column, Integer
 from sqlalchemy import Table
-from misc import dict_to_lower
+from misc import dict_to_lower,unicode2str
 
 class Dates(dbBase.DB_BASE):
     
@@ -86,7 +86,7 @@ class block_config_api(object):
         else:
             return None
         pydict = json.loads(value)
-        return pydict
+        return unicode2str(pydict)
     
     def erase_id(self,id):
         key = self.id2key(id)

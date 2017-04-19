@@ -2,12 +2,10 @@ import pandas as pd
 import os
 import ConfigParser
 from config_vars import CFFEXBreak, CommodityInfo, IndicatorIDs, GlobalVar, Ticker
-
-import sys
-sys.path.append("..")
-from future_mysql.time2point import DayMode
-
+import collections
+from redis_block_config import block_config_api
 from misc import dict_to_lower
+from redis_block_config import Dates
 
 g_v = GlobalVar()
 basic_path = ''
@@ -51,19 +49,44 @@ def generate_commodity_info(pydict):
     
     with open(tar_path,'w+') as fout:
         fout.write('\t'.join(colnames))
+        fout.write('\n')
         for ins in pydict['instruments']:
             id = ticker.get_id(ins)
-            print id
-            obj = cinfo.query_obj(cinfo.commodity_info_obj,ID = id)[0]
-            print map(lambda x:getattr(obj,x), cinfo.get_column_names(cinfo.commodity_info_obj))
-    
+            objs = cinfo.query_obj(cinfo.commodity_info_obj,ID = id)
+            if isinstance(objs,collections.Iterable):
+                obj = objs[0]
+            else:
+                continue
+            obj.startDate = pydict['start_date']
+            obj.endDate   = pydict['end_date']
+            sout = '\t'.join(map(lambda x:str(getattr(obj,x)), cinfo.get_column_names(cinfo.commodity_info_obj)))
+            fout.write(sout)
+            fout.write('\n')
+
+def create_trading_day_list(pydict):
+    from sqlalchemy import and_
+    dates = Dates()
+    ss = dates.get_session()
+    records = ss.query(dates.trading_day_obj).filter(and_(dates.trading_day_obj.date >= pydict['start_date'],dates.trading_day_obj.date <= pydict['end_date'] )).all()
+    ss.close()
+    global basic_path
+    tar_path = os.path.join(basic_path,'tradingDay.list')
+    print tar_path
+    with open(tar_path,'w+') as fout:
+        for day in records:
+            fout.write(str(day.date))
+            fout.write('\n')
+    return len(records)
+            
 if __name__ == '__main__':
     
-    pydict = {'level':'tick','type':'future','adjust':0,'start_date':20130101,'end_date':20140102,'indicators':['LastPrice','TradeVolume','BidPrice1','BidVolume1','AskPrice1','AskVolume1','OpenInterest'],'instruments':['if0001','if0002']}
-    pydict = dict_to_lower(pydict)
     dispatch_id = 0
+    dbapi = block_config_api()
+    pydict = dbapi.get_id(dispatch_id)
+    print pydict
     
     set_basic_path(dispatch_id)
     generate_break(pydict)
     generate_commodity_info(pydict)
+    print 'daylen = ',create_trading_day_list(pydict)
 

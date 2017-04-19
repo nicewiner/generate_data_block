@@ -45,6 +45,7 @@ def get_instrument_list(input_inss):
         return []
     
 def check_or_add_db(arg_dict):
+    arg_dict = dict_to_lower(arg_dict)
     db_api = redis_block_config.block_config_api()
     re = db_api.belong_to(arg_dict)
     if re != -1:

@@ -77,7 +77,31 @@ def create_trading_day_list(pydict):
             fout.write(str(day.date))
             fout.write('\n')
     return len(records)
-            
+        
+def create_ind_and_pair(pydict):
+    from ind_cal import IndCal
+    indIDs = IndicatorIDs()
+    idmap = indIDs.tick_map if pydict['level'] == 'tick' else indIDs.other_map
+    bytemap = indIDs.tick_byte4 if pydict['level'] == 'tick' else indIDs.other_byte4
+    global basic_dir
+    pair_path = os.path.join(basic_path,'indicatorsPair.list')
+    list_path = os.path.join(basic_path,'indList.list.list')
+    print pair_path,'\n',list_path
+    with open(pair_path,'w+') as pair_out:
+        with open(list_path,'w+') as list_out:
+            for ind_name in pydict['indicators']:
+                if ind_name in idmap.keys():
+                    pair_out.write(ind_name + ' ' + str(idmap[ind_name]))
+                    pair_out.write('\n')
+                    data_size = 8 if idmap[ind_name] not in bytemap else 4
+                    list_out.write(str(idmap[ind_name]) + ' ' + str(data_size))
+                    list_out.write('\n')
+                else:
+                    print 'invalid indicator ',ind_name
+
+def create_ins_and_pair(pydict):
+    pass
+
 if __name__ == '__main__':
     
     dispatch_id = 0
@@ -89,4 +113,5 @@ if __name__ == '__main__':
     generate_break(pydict)
     generate_commodity_info(pydict)
     print 'daylen = ',create_trading_day_list(pydict)
+    create_ind_and_pair(pydict)
 

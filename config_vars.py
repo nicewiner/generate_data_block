@@ -144,6 +144,7 @@ class IndicatorIDs(object):
         self.tick_map['LOG_PI'] = 43
         
         self.tick_map = self.dict_process(self.tick_map)
+        self.tick_byte4 = set([1,5,7,13,14])
         
         ##------------------------------------------------------##
         self.other_map = {}
@@ -176,6 +177,7 @@ class IndicatorIDs(object):
         self.other_map['TREND'] = 150
         
         self.other_map = self.dict_process(self.other_map)
+        self.other_byte4 = set([104,105,108,109,111,112,113,150])
         
     def dict_process(self,indict):
         newdict = copy.deepcopy(indict)

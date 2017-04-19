@@ -5,7 +5,7 @@ import copy
 from redis_block_config import Dates
 from misc import dict_to_lower
 
-basic_indicators = ['LastPrice','TradeVolume','BidPrice','BidVolume','AskPrice','AskVolume','OpenInterest']
+basic_indicators = map(lambda x:str.lower(x),['LastPrice','Volume','BidPrice','BidVolume','AskPrice','AskVolume','OpenInterest'])
 
 def verify(arg_dict):
     
@@ -30,6 +30,7 @@ def verify(arg_dict):
     return 0
     
 def get_indicator_list(input_inds):
+    input_inds = str.lower(input_inds)
     inds = set(copy.deepcopy(basic_indicators))
     if input_inds is not None:
         for i in input_inds.split(','):

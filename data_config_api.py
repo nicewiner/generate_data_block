@@ -1,8 +1,9 @@
 import os
-import block_config
+import redis_block_config
 import argparse
 import copy
-from block_config import Dates
+from redis_block_config import Dates
+from misc import dict_to_lower
 
 basic_indicators = ['LastPrice','TradeVolume','BidPrice','BidVolume','AskPrice','AskVolume','OpenInterest']
 
@@ -44,7 +45,7 @@ def get_instrument_list(input_inss):
         return []
     
 def check_or_add_db(arg_dict):
-    db_api = block_config.block_config_api()
+    db_api = redis_block_config.block_config_api()
     re = db_api.belong_to(arg_dict)
     if re != -1:
         return re
@@ -77,6 +78,7 @@ if __name__ == '__main__':
     adjust = int(arg_dict['adjust'])
     arg_dict['indicators'] = get_indicator_list(arg_dict['indicators'])
     arg_dict['instruments'] = get_instrument_list(arg_dict['instruments'])
+    arg_dict = dict_to_lower(arg_dict)
     print 'arg_dict = ',arg_dict
     
     id = check_or_add_db(arg_dict)

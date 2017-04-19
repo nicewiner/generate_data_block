@@ -12,6 +12,11 @@ class GlobalVar(object):
     
     def __init__(self):
         self.basic_path = r'E:\autoBackTest'
+        
+        self.sample_freq = {}
+        self.sample_freq['tick'] = 500
+        self.sample_freq['1min'] = 60000
+        self.sample_freq['5min'] = 300000
 
 
 ##Add a constraint here, cffex instruments can not go along with others 
@@ -36,6 +41,7 @@ class CFFEXBreak(dbBase.DB_BASE):
         self.insert_listlike(self.commodity_info_obj,(type,spots_perday,spots_interval,break_spots,break_millis))
     
     def get_value(self,stype = 'tick'):
+        print stype
         ss = self.get_session()
         records = ss.query(self.commodity_info_obj).filter_by(type = stype).first()
         if records:
@@ -179,6 +185,42 @@ class IndicatorIDs(object):
             newdict[str.lower(''.join(k.split('_')))] = v
         return newdict
 
+class Ticker(object):
+    
+    def __init__(self):
+        self.tid_dict = {}
+        self.cffex = ['if','tf','ic','ih']
+        j = 1
+        for i in self.cffex:
+            self.tid_dict[i] = 11000 + j
+            j += 1
+        self.shfex = ['au','ag','cu','al','zn','rb','ru']
+        j = 1
+        for i in self.shfex:
+            self.tid_dict[i] = 12000 + j
+            j += 1
+            
+    def get_market_id(self,ticker):
+        ticker = str.lower(ticker)[:2]
+        if ticker in self.cffex:
+            return int(self.tid_dict[ticker] / 1000)
+        if ticker in self.shfex:
+            return int(self.tid_dict[ticker] / 1000)
+        return None
+    
+    def get_market_no(self,ticker):
+        ticker = str.lower(ticker)[:2]
+        if ticker in self.cffex:
+            return int(self.tid_dict[ticker] % 1000)
+        if ticker in self.shfex:
+            return int(self.tid_dict[ticker] % 1000)
+        return None
+    
+    def get_id(self,ticker):
+        market_id,market_no = self.get_market_id(ticker),self.get_market_no(ticker)
+        last = int(filter(lambda x: str.isdigit(x),ticker))
+        return ( market_id * 1000 + market_no ) * 10000 + last        
+        
 def test_ids():
     ##check IDs
     indIDs = IndicatorIDs()
@@ -191,7 +233,7 @@ def test_info_struct():
     ##check commInfo
     comInfo = CommodityInfo()
     print comInfo.get_column_names(comInfo.commodity_info_obj)
-    inVals = '''110010001    11    IF0001    33300000    54900000    500    20130108    20130711    300    1    -9999    -9999    11    -9999    1    41400000    41400000    0    10    -9999    0.12    0.15    0.2    0.000025    0    1    0    0.1    0.1    0.1'''.split()
+    inVals = '''110010004    11    IF0004    34200000    54000000    500    20130108    20130711    300    1    -9999    -9999    11    -9999    1    41400000    43200000    0    10    -9999    0.12    0.15    0.2    0.000025    0    1    0    0.1    0.1    0.1'''.split()
     comInfo.insert_listlike(comInfo.commodity_info_obj,inVals)
 
 def test_break_info():
@@ -201,5 +243,5 @@ def test_break_info():
     print breakinfo.get_value('tick')
     
 if __name__ == '__main__':
-    test_break_info()
+    test_info_struct()
     

@@ -8,6 +8,7 @@ from future_mysql import dbBase
 
 from sqlalchemy import Column, Integer
 from sqlalchemy import Table
+from misc import dict_to_lower
 
 class Dates(dbBase.DB_BASE):
     
@@ -71,7 +72,9 @@ class block_config_api(object):
             pydict['start_date'] = self.dates.get_first_bigger_than(pydict['start_date'])
             pydict['end_date'] = self.dates.get_first_less_than(pydict['end_date'])
             self.is_trading_date = True
-         
+        
+        pydict = dict_to_lower(pydict)
+        
         json_str = json.dumps(pydict)
         key = self.id2key(id)
         self.iredis.set(key,json_str)
@@ -131,10 +134,11 @@ class block_config_api(object):
             
 if __name__ == '__main__':
     
-    
     ##Test db
     '''try set'''
     text = {'level':'tick','type':'future','adjust':0,'start_date':20160101,'end_date':20160102,'indicators':["LastPrice","Volume"],'instruments':['if0001','if0002']}
+    text = dict_to_lower(text)
+    
     dbapi = block_config_api()
     dbapi.set_id(0,text)
     

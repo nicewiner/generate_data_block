@@ -41,7 +41,7 @@ class CFFEXBreak(dbBase.DB_BASE):
         self.insert_listlike(self.commodity_info_obj,(type,spots_perday,spots_interval,break_spots,break_millis))
     
     def get_value(self,stype = 'tick'):
-        print stype
+#         print stype
         ss = self.get_session()
         records = ss.query(self.commodity_info_obj).filter_by(type = stype).first()
         if records:
@@ -221,7 +221,10 @@ class Ticker(object):
     def get_id(self,ticker):
         market_id,market_no = self.get_market_id(ticker),self.get_market_no(ticker)
         last = int(filter(lambda x: str.isdigit(x),ticker))
-        return ( market_id * 1000 + market_no ) * 10000 + last        
+        if market_id:
+            return ( market_id * 1000 + market_no ) * 10000 + last  
+        else:
+            return None      
         
 def test_ids():
     ##check IDs

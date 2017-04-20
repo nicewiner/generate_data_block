@@ -11,7 +11,7 @@ from sqlalchemy import Table
 class GlobalVar(object):
     
     def __init__(self):
-        self.basic_path = r'E:\autoBackTest'
+        self.basic_path = r'/home/xudi/autoBackTest'
         
         self.sample_freq = {}
         self.sample_freq['tick'] = 500

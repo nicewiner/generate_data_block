@@ -136,7 +136,7 @@ if __name__ == '__main__':
     
     ##Test db
     '''try set'''
-    text = {'level':'tick','type':'future','adjust':0,'start_date':20160101,'end_date':20160102,'indicators':["LastPrice","Volume"],'instruments':['if0001','if0002']}
+    text = {'level':'tick','type':'future','adjust':0,'start_date':20140101,'end_date':20150102,'indicators':["LastPrice","Volume"],'instruments':['if0001','if0002']}
     text = dict_to_lower(text)
     
     dbapi = block_config_api()

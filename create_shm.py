@@ -1,12 +1,10 @@
 
 import os
 import ConfigParser
-from config_vars import CFFEXBreak, CommodityInfo, IndicatorIDs, GlobalVar, Ticker
 import collections
-from redis_block_config import block_config_api
-from misc import dict_to_lower
-from redis_block_config import Dates
-
+from config_vars import CFFEXBreak, CommodityInfo, IndicatorIDs, GlobalVar, Ticker
+from redis_block_config import block_config_api, Dates
+ 
 g_v = GlobalVar()
 num_of_trading_days = 0
 basic_path = ''
@@ -81,7 +79,7 @@ def create_trading_day_list(pydict):
     num_of_trading_days = len(records)
     print 'daylen = ',len(records)
     return len(records)
-        
+
 def create_ind_and_pair(pydict):
     from ind_cal import IndCal
     indIDs = IndicatorIDs()
@@ -89,7 +87,7 @@ def create_ind_and_pair(pydict):
     bytemap = indIDs.tick_byte4 if pydict['level'] == 'tick' else indIDs.other_byte4
     global basic_dir
     pair_path = os.path.join(basic_path,'indicatorsPair.list')
-    list_path = os.path.join(basic_path,'indList.list.list')
+    list_path = os.path.join(basic_path,'indList.list')
     print pair_path,'\n',list_path
     with open(pair_path,'w+') as pair_out:
         with open(list_path,'w+') as list_out:
@@ -174,9 +172,10 @@ def create_shm_alloc_ini(dispatch_id,pydict):
     bytemap = indIDs.tick_byte4 if pydict['level'] == 'tick' else indIDs.other_byte4
     for ind_name in pydict['indicators']:
         ind_id = idmap[ind_name]
-        if ind_id:
+        if ind_id is not None:
             data_size = 8 if idmap[ind_name] not in bytemap else 4
-            limit_size += data_size * spots_count
+            limit_size += data_size
+    limit_size *= len(pydict['instruments']) * spots_count
     ipc_key = '0x0f0f%04d' % (dispatch_id)
     auth = 438
     info_size = 10240000
@@ -209,7 +208,33 @@ def create_shm_alloc_ini(dispatch_id,pydict):
     with open(tar_path,'w+') as fout:
         scp.write(fout)
 
-def startup_shm():
+def startup_shm(dispatch_id):
+    from misc import get_active_IPC
+    active_ipcs = get_active_IPC()
+    
+    ipc_key = '0x0f0f%04d' % (dispatch_id)
+    info_key = '0x0e0e%04d' % (dispatch_id)
+    if ( ipc_key in active_ipcs ) or (info_key in active_ipcs):
+        print 'error, shm exist'
+        return -1
+    
+    global basic_path
+    DataServer = r'/quant/bin/DataServer'
+    os.chdir(basic_path)
+    cmd = "{0} -c -i -f {1}".format(DataServer,os.path.join(basic_path,'ShmAlloc.ini'))
+    print cmd
+    os.system(cmd)
+    
+    active_ipcs = get_active_IPC()
+    if ( ipc_key not in active_ipcs ) or (info_key not in active_ipcs):
+        print 'error, can not create shm'
+        return -2
+    else:
+        return 0
+        
+def load_data():
+    import pandas as pd
+    import ShmPython as sm
     pass
            
 if __name__ == '__main__':
@@ -226,4 +251,5 @@ if __name__ == '__main__':
     create_ind_and_pair(pydict)
     create_ins_and_pair(pydict)
     create_shm_alloc_ini(dispatch_id,pydict)
+    startup_shm(dispatch_id)
     

@@ -8,45 +8,8 @@ from future_mysql import dbBase
 
 from sqlalchemy import Column, Integer
 from sqlalchemy import Table
+from config_vars import  Dates
 from misc import dict_to_lower,unicode2str
-
-class Dates(dbBase.DB_BASE):
-    
-    def __init__(self):
-        db_name,table_name = 'dates','trading_days'
-        super(Dates,self).__init__(db_name)
-        
-        self.table_struct = Table(table_name,self.meta,
-             Column('date',Integer,primary_key = True,autoincrement = False),
-            )
-        
-        self.trading_day_obj = self.quick_map(self.table_struct)
-                
-    def get_first_bigger_than(self,idate):
-        if int(idate) > 20200000 or int(idate) < 20050101:
-            return None
-        
-        ss = self.get_session()
-        ret = ss.query(self.trading_day_obj).filter(self.trading_day_obj.date >= int(idate)).first()
-        if ret:
-            ss.close()
-            return ret.date
-        else:
-            ss.close()
-            return None
-        
-    def get_first_less_than(self,idate):
-        if int(idate) > 20200000 or int(idate) < 20050101:
-            return None
-        
-        ss = self.get_session()
-        ret = ss.query(self.trading_day_obj).filter(self.trading_day_obj.date <= int(idate)).order_by(self.trading_day_obj.date.desc()).first()
-        if ret:
-            ss.close()
-            return ret.date
-        else:
-            ss.close()
-            return None
         
 class block_config_api(object):
     

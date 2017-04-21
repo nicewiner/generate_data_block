@@ -41,19 +41,6 @@ def get_active_IPC():
     lines = buf.strip().split('\n')[2:]
     activeIPCs = set([line.split()[0] for line in lines])
     return activeIPCs
-
-def read_sql():
-    import sys
-    sys.path.append("..")
-    from future_mysql.data_import import cffex_if
-    import ShmPython as sm
-    import pandas as pd
-    
-    db_name = 'cffex_if'
-    day = 20140102
-    hs300 = cffex_if(db_name,day)
-    sql = 'select * from {0} where '
-    df = pd.read_sql(sql,hs300.engine)
             
 if __name__ == '__main__':
     print get_active_IPC()

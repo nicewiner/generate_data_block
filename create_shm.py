@@ -232,10 +232,46 @@ def startup_shm(dispatch_id):
     else:
         return 0
         
-def load_data():
-    import pandas as pd
+def load_data(pydict):
+    
+    import sys
+    sys.path.append("..")
+    
+    from future_mysql.data_import import cffex_if
+    from future_mysql.trading_day_list import futureOrder
+    from config_vars import Dates
     import ShmPython as sm
-    pass
+    import pandas as pd
+    
+    global basic_path
+    tar_path = os.path.join(basic_path,'tradingDay.list')
+    with open(tar_path,'r') as fin:
+        trading_day_list = [ int( i.strip()) for i in fin]
+    
+    ticker = Ticker()
+    
+    for ins_name in pydict['instruments']: 
+        print ins_name
+        db_name = ticker.get_dbname(ins_name)
+        for iday in trading_day_list:
+            print iday,db_name
+            if db_name == 'cffex_if':
+                data_table = cffex_if(db_name,iday)
+                data_order = futureOrder('if')
+                table_name = '.'.join((db_name,str(iday)))
+            
+            if not data_table.check_table_exist():
+                print 'table does not exist!'
+                continue
+            
+            order_record = data_order.query_obj(data_order.future_order_struct,date = iday)[0]
+            ticker_id = getattr(order_record, ins_name)
+            sql = 'select * from {0} where id = \'{1}\' order by spot;'.format(table_name,ticker_id,table_name)
+            print sql
+            df = pd.read_sql(sql,data_table.engine,index_col = 'spot')
+            df['volume'] = df['TradeVolume'].cumsum()
+            print df.head()
+            exit(-1)
            
 if __name__ == '__main__':
     
@@ -245,11 +281,13 @@ if __name__ == '__main__':
     print pydict
     
     set_basic_path(dispatch_id)
-    generate_break(pydict)
-    generate_commodity_info(pydict)
-    create_trading_day_list(pydict)
-    create_ind_and_pair(pydict)
-    create_ins_and_pair(pydict)
-    create_shm_alloc_ini(dispatch_id,pydict)
-    startup_shm(dispatch_id)
+#     generate_break(pydict)
+#     generate_commodity_info(pydict)
+#     create_trading_day_list(pydict)
+#     create_ind_and_pair(pydict)
+#     create_ins_and_pair(pydict)
+#     create_shm_alloc_ini(dispatch_id,pydict)
+#     startup_shm(dispatch_id)
+    
+    load_data(pydict)
     

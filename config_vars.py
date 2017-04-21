@@ -224,7 +224,15 @@ class Ticker(object):
         if market_id:
             return ( market_id * 1000 + market_no ) * 10000 + last  
         else:
-            return None      
+            return None 
+        
+    def get_dbname(self,ticker):   
+        ticker = str.lower(ticker)[:2]
+        if ticker in self.cffex:  
+            return '_'.join('cffex',ticker)
+        elif ticker in self.shfex:
+            return '_'.join('shfex',ticker)
+        return None
         
 def test_ids():
     ##check IDs

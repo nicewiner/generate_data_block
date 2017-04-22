@@ -232,7 +232,7 @@ def startup_shm(dispatch_id):
     else:
         return 0
         
-def load_data(pydict):
+def load_data_tick(pydict):
     
     import sys
     sys.path.append("..")
@@ -250,9 +250,16 @@ def load_data(pydict):
     
     ticker = Ticker()
     
-    for ins_name in pydict['instruments']: 
-        print ins_name
-        db_name = ticker.get_dbname(ins_name)
+    market_ids = [ ticker.get_market_id(ins_name) for ins_name in pydict['instruments'] ]
+    marketid2inss = {}
+    for mid in market_ids:
+        marketid2inss[mid] = [ ins_name for ins_name in pydict['instruments'] if ticker.get_market_id(ins_name) == mid]
+    print marketid2inss
+    
+    for market_id in market_ids: 
+        print market_id
+        ins_names = marketid2inss[market_id]
+        db_name = ticker.get_dbname(ins_names[0])
         for iday in trading_day_list:
             print iday,db_name
             if db_name == 'cffex_if':
@@ -265,12 +272,15 @@ def load_data(pydict):
                 continue
             
             order_record = data_order.query_obj(data_order.future_order_struct,date = iday)[0]
-            ticker_id = getattr(order_record, ins_name)
-            sql = 'select * from {0} where id = \'{1}\' order by spot;'.format(table_name,ticker_id,table_name)
+            ticker_ids = [ getattr(order_record, ins_name) for ins_name in ins_names ] 
+            conditions = 'OR'.join([" id = '{0}' ".format(ticker_id) for ticker_id in ticker_ids])
+            sql = 'select * from {0} where {1} order by spot;'.format(table_name,conditions)
             print sql
-            df = pd.read_sql(sql,data_table.engine,index_col = 'spot')
-            df['volume'] = df['TradeVolume'].cumsum()
-            print df.head()
+            df = pd.read_sql(sql,data_table.engine,index_col = ['spot'])
+            df.columns = map(lambda x:str.lower(str(x)),df.columns)
+            for ticker in ticker_ids:
+                sub_df = df.loc[df['id'] == ticker]
+                print sub_df.tail()
             exit(-1)
            
 if __name__ == '__main__':
@@ -289,5 +299,5 @@ if __name__ == '__main__':
 #     create_shm_alloc_ini(dispatch_id,pydict)
 #     startup_shm(dispatch_id)
     
-    load_data(pydict)
+    load_data_tick(pydict)
     

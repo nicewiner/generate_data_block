@@ -1,3 +1,4 @@
+import subprocess
 
 def dict_to_lower(d):
     l = {}
@@ -35,13 +36,25 @@ def migrate_sql():
         os.system(cmd)
 
 def get_active_IPC():
-    import subprocess
     ret = subprocess.Popen(['ipcs','-m'],stdout=subprocess.PIPE)
     buf = ret.stdout.read()
     lines = buf.strip().split('\n')[2:]
     activeIPCs = set([line.split()[0] for line in lines])
     return activeIPCs
-            
+
+def ipc_exist(ipc_key):
+    ret = subprocess.Popen(['ipcs','-m'],stdout=subprocess.PIPE)
+    buf = ret.stdout.read()
+    lines = buf.strip().split('\n')[2:]
+    activeIPCs = set([line.split()[0] for line in lines])
+    return (ipc_key in activeIPCs)
+
+def ipc_remove(*ipcs):
+    for ipc_key in ipcs:
+        args = ['ipcrm','-M']
+        args.append(ipc_key)
+        ret = subprocess.call(args)
+        
 if __name__ == '__main__':
     print get_active_IPC()
     

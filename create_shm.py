@@ -4,6 +4,7 @@ import ConfigParser
 import collections
 from config_vars import CFFEXBreak, CommodityInfo, IndicatorIDs, GlobalVar, Ticker
 from redis_block_config import block_config_api, Dates
+from tornado.process import Subprocess
  
 g_v = GlobalVar()
 num_of_trading_days = 0
@@ -231,8 +232,24 @@ def startup_shm(dispatch_id):
         return -2
     else:
         return 0
-        
+
+def load_from_bin(load_path):
+    DataLoader = r'/quant/bin/DataLoader'
+    os.chdir(load_path)
+    
+    scp = ConfigParser.SafeConfigParser()
+    scp.read(os.path.join(load_path,'ShmAlloc.ini' ))
+    ipc_key = scp.get('SHM','IPC_KEY') 
+    
+    cmd = "{0} -w {1} -i {2}".format(DataLoader, load_path, ipc_key)  
+    os.system(cmd)
+    
 def load_data_tick(pydict):
+    
+    global basic_path
+    if os.path.exists(os.path.join(basic_path,'data.bin')):
+        load_from_bin(basic_path)
+        return 0
     
     import sys
     sys.path.append("..")
@@ -240,27 +257,42 @@ def load_data_tick(pydict):
     from future_mysql.data_import import cffex_if
     from future_mysql.trading_day_list import futureOrder
     from config_vars import Dates
-    import ShmPython as sm
+    import ShmPython
     import pandas as pd
+    import numpy as np
     
-    global basic_path
     tar_path = os.path.join(basic_path,'tradingDay.list')
     with open(tar_path,'r') as fin:
         trading_day_list = [ int( i.strip()) for i in fin]
     
+    config_path = os.path.join(basic_path,'ShmAlloc.ini')
+    scp = ConfigParser.SafeConfigParser()
+    scp.read(config_path)
+    spots_perday = int(scp.get('HEADER_BLOCK','spots_count_perday'))
+    ipc_key = scp.get('SHM','ipc_key')
+    print spots_perday,ipc_key
+    shm_api = ShmPython.Shm(ipc_key)
+    
+    if not shm_api.isConnectGood():
+        print 'no such shm'
+        return -1
+    
     ticker = Ticker()
     
-    market_ids = [ ticker.get_market_id(ins_name) for ins_name in pydict['instruments'] ]
+    market_ids = set([ ticker.get_market_id(ins_name) for ins_name in pydict['instruments'] ])
     marketid2inss = {}
     for mid in market_ids:
         marketid2inss[mid] = [ ins_name for ins_name in pydict['instruments'] if ticker.get_market_id(ins_name) == mid]
     print marketid2inss
+    print market_ids
+
+    indAPI = IndicatorIDs()
     
     for market_id in market_ids: 
         print market_id
         ins_names = marketid2inss[market_id]
         db_name = ticker.get_dbname(ins_names[0])
-        for iday in trading_day_list:
+        for nthday,iday in enumerate(trading_day_list):
             print iday,db_name
             if db_name == 'cffex_if':
                 data_table = cffex_if(db_name,iday)
@@ -275,29 +307,81 @@ def load_data_tick(pydict):
             ticker_ids = [ getattr(order_record, ins_name) for ins_name in ins_names ] 
             conditions = 'OR'.join([" id = '{0}' ".format(ticker_id) for ticker_id in ticker_ids])
             sql = 'select * from {0} where {1} order by spot;'.format(table_name,conditions)
-            print sql
+            
             df = pd.read_sql(sql,data_table.engine,index_col = ['spot'])
             df.columns = map(lambda x:str.lower(str(x)),df.columns)
-            for ticker in ticker_ids:
-                sub_df = df.loc[df['id'] == ticker]
-                print sub_df.tail()
-            exit(-1)
-           
+            for nth_ins,real_ticker in enumerate(ticker_ids):
+                
+                ins_name = ins_names[nth_ins]
+#                 print ins_name
+                ins_id   = ticker.get_id(ins_name)
+                ins_index = shm_api.id2index_ins(ins_id)
+#                 print 'ins_name = {0}, ins_id = {1}, ins_index = {2}'.format(ins_name,ins_id,ins_index)
+                sub_df = df.loc[df['id'] == real_ticker]                
+                for ind_name in pydict['indicators']:
+                    ind_id = indAPI.tick_map[ind_name]
+                    ind_index = shm_api.id2index_ind(ind_id)
+                    data_size = 4 if ind_id in indAPI.tick_byte4 else 8
+                    begin_spots = nthday * spots_perday
+#                     print 'ind_name = {0}, ind_id = {1}, ind_index = {2}, ind_size = {3}'.format(ind_name,ind_id,ind_index,data_size)
+                    if data_size == 4:
+                        values = sub_df.ix[:,ind_name].apply(np.int).values
+                        shm_api.dumpIntDataList(values,ind_index,ins_index,begin_spots,begin_spots + spots_perday)
+                    else:
+                        values = sub_df.ix[:,ind_name].values
+                        shm_api.dumpDoubleDataList(values,ind_index,ins_index,begin_spots,begin_spots + spots_perday)
+                       
+    return 0
+
+def export2bin():
+    global basic_path
+    import ShmPython
+    config_path = os.path.join(basic_path,'ShmAlloc.ini')
+    scp = ConfigParser.SafeConfigParser()
+    scp.read(config_path)
+    ipc_key = scp.get('SHM','ipc_key')
+    
+    shm_api = ShmPython.Shm(ipc_key)
+    if not shm_api.isConnectGood():
+        print 'no such shm'
+        return -1
+    
+    
+class ShmCreator(object):
+    
+    def __init__(self,dispatch_id):
+        self.id = dispatch_id
+        set_basic_path(dispatch_id)
+        global basic_path
+        self.basic_path = basic_path
+        
+    def generate(self):
+        from misc import ipc_exist
+        dbapi = block_config_api()
+        pydict = dbapi.get_id(self.id)
+        print pydict
+        if os.path.exists(os.path.join(self.basic_path,str(self.id))):
+            pass
+        else:
+            generate_break(pydict)
+            generate_commodity_info(pydict)
+            create_trading_day_list(pydict)
+            create_ind_and_pair(pydict)
+            create_ins_and_pair(pydict)
+            create_shm_alloc_ini(self.id,pydict)
+            
+        config_path = os.path.join(self.basic_path,'ShmAlloc.ini')
+        scp = ConfigParser.SafeConfigParser()
+        scp.read(config_path)
+        ipc_key = scp.get('SHM','ipc_key')
+        
+        if not ipc_exist(ipc_key):
+            startup_shm(self.id)
+            load_data_tick(pydict)
+            
 if __name__ == '__main__':
     
     dispatch_id = 0
-    dbapi = block_config_api()
-    pydict = dbapi.get_id(dispatch_id)
-    print pydict
-    
-    set_basic_path(dispatch_id)
-#     generate_break(pydict)
-#     generate_commodity_info(pydict)
-#     create_trading_day_list(pydict)
-#     create_ind_and_pair(pydict)
-#     create_ins_and_pair(pydict)
-#     create_shm_alloc_ini(dispatch_id,pydict)
-#     startup_shm(dispatch_id)
-    
-    load_data_tick(pydict)
+    shm_creator = ShmCreator(dispatch_id)
+    shm_creator.generate()
     

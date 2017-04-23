@@ -293,5 +293,6 @@ def test_break_info():
     print breakinfo.get_value('tick')
     
 if __name__ == '__main__':
-    test_info_struct()
+    from future_mysql import data_import
+    print sys.path
     

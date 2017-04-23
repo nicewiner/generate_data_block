@@ -4,7 +4,6 @@ import ConfigParser
 import collections
 from config_vars import CFFEXBreak, CommodityInfo, IndicatorIDs, GlobalVar, Ticker
 from redis_block_config import block_config_api, Dates
-from tornado.process import Subprocess
  
 g_v = GlobalVar()
 num_of_trading_days = 0
@@ -221,7 +220,6 @@ def startup_shm(dispatch_id):
     
     global basic_path
     DataServer = r'/quant/bin/DataServer'
-    os.chdir(basic_path)
     cmd = "{0} -c -i -f {1}".format(DataServer,os.path.join(basic_path,'ShmAlloc.ini'))
     print cmd
     os.system(cmd)
@@ -235,7 +233,6 @@ def startup_shm(dispatch_id):
 
 def load_from_bin(load_path):
     DataLoader = r'/quant/bin/DataLoader'
-    os.chdir(load_path)
     
     scp = ConfigParser.SafeConfigParser()
     scp.read(os.path.join(load_path,'ShmAlloc.ini' ))
@@ -252,7 +249,7 @@ def load_data_tick(pydict):
         return 0
     
     import sys
-    sys.path.append("..")
+    sys.path.append('..')
     
     from future_mysql.data_import import cffex_if
     from future_mysql.trading_day_list import futureOrder
@@ -355,12 +352,13 @@ class ShmCreator(object):
         global basic_path
         self.basic_path = basic_path
         
-    def generate(self):
+    def generate(self,force_reload = False):
+        
         from misc import ipc_exist
         dbapi = block_config_api()
         pydict = dbapi.get_id(self.id)
-        print pydict
-        if os.path.exists(os.path.join(self.basic_path,str(self.id))):
+        if os.path.exists(self.basic_path):
+            print 'config files already created'
             pass
         else:
             generate_break(pydict)
@@ -378,10 +376,25 @@ class ShmCreator(object):
         if not ipc_exist(ipc_key):
             startup_shm(self.id)
             load_data_tick(pydict)
+        else:
+            if force_reload:
+                load_data_tick(pydict)
+    
+    #to do: 1.check whether there is enough memory space 2.delete extra ipckey        
+    def config_os_memory(self):
+        pass
             
 if __name__ == '__main__':
     
+#     dispatch_id = 0
+#     shm_creator = ShmCreator(dispatch_id)
+#     shm_creator.generate()
+    
+    #for debug
     dispatch_id = 0
-    shm_creator = ShmCreator(dispatch_id)
-    shm_creator.generate()
+    dbapi = block_config_api()
+    pydict = dbapi.get_id(dispatch_id)
+    set_basic_path(dispatch_id)
+    startup_shm(dispatch_id)
+    load_data_tick(pydict)
     

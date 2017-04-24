@@ -50,14 +50,15 @@ def generate_commodity_info(pydict):
         fout.write('\t'.join(colnames))
         fout.write('\n')
         for ins in pydict['instruments']:
-            id = ticker.get_id(ins)
-            objs = cinfo.query_obj(cinfo.commodity_info_obj,ID = id)
+            _id = ticker.get_id(ins)
+            objs = cinfo.query_obj(cinfo.commodity_info_obj,ID = _id)
             if isinstance(objs,collections.Iterable):
                 obj = objs[0]
             else:
                 continue
             obj.startDate = pydict['start_date']
             obj.endDate   = pydict['end_date']
+            obj.basicFee  = '%f' %(obj.basicFee)
             sout = '\t'.join(map(lambda x:str(getattr(obj,x)), cinfo.get_column_names(cinfo.commodity_info_obj)))
             fout.write(sout)
             fout.write('\n')
@@ -404,15 +405,16 @@ class ShmCreator(object):
             
 if __name__ == '__main__':
     
-    dispatch_id = 0
-    shm_creator = ShmCreator(dispatch_id)
-    shm_creator.generate()
+#     dispatch_id = 0
+#     shm_creator = ShmCreator(dispatch_id)
+#     shm_creator.generate()
     
     #for debug
-#     dispatch_id = 0
-#     dbapi = block_config_api()
-#     pydict = dbapi.get_id(dispatch_id)
-#     set_basic_path(dispatch_id)
+    dispatch_id = 0
+    dbapi = block_config_api()
+    pydict = dbapi.get_id(dispatch_id)
+    set_basic_path(dispatch_id)
+    generate_commodity_info(pydict)
 #     create_trading_day_list(pydict)
 #     create_shm_alloc_ini(dispatch_id,pydict)
 #     startup_shm(dispatch_id)

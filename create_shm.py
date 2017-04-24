@@ -207,7 +207,22 @@ def create_shm_alloc_ini(dispatch_id,pydict):
     
     with open(tar_path,'w+') as fout:
         scp.write(fout)
-
+        
+    #generate config.ini for data_loader
+    tar_path = os.path.join(basic_path,'config.ini')
+    print tar_path
+    scp2 = ConfigParser.SafeConfigParser()
+    tag = 'HEADER_BLOCK'
+    scp2.add_section(tag)
+    scp2.set(tag,'SPOTS_COUNT',str(num_of_trading_days * spots_perday))
+    scp2.set(tag,'SPOTS_INTERVAL',str(spots_interval))
+    scp2.set(tag,'SPOTS_COUNT_PERDAY',str(spots_count_perday))
+    scp2.set(tag,'BEGIN_DATE',str(begin_date))
+    scp2.set(tag,'HISTORY_DATA_DURATION',str(history_data_duration))
+    scp2.set(tag,'BEGIN_MILLISEC_IN_DAY',str(begin_millisec_in_day))
+    with open(tar_path,'w+') as fout:
+        scp2.write(fout)
+    
 def startup_shm(dispatch_id):
     from misc import get_active_IPC
     active_ipcs = get_active_IPC()
@@ -328,22 +343,25 @@ def load_data_tick(pydict):
                         values = sub_df.ix[:,ind_name].values
                         shm_api.dumpDoubleDataList(values,ind_index,ins_index,begin_spots,begin_spots + spots_perday)
                        
+    if not os.path.exists(os.path.join(basic_path,'data.bin')):
+        export2bin(shm_api)
+    
     return 0
 
-def export2bin():
+def export2bin(shm_api):
     global basic_path
-    import ShmPython
-    config_path = os.path.join(basic_path,'ShmAlloc.ini')
-    scp = ConfigParser.SafeConfigParser()
-    scp.read(config_path)
-    ipc_key = scp.get('SHM','ipc_key')
-    
-    shm_api = ShmPython.Shm(ipc_key)
     if not shm_api.isConnectGood():
         print 'no such shm'
         return -1
-    
-    
+    day_length = shm_api.getHeader().getHistoryDataDuration()
+    output_dir = os.path.join(basic_path,'export')
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    shm_api.export_shm(output_dir, day_length, False)
+    bin_name = filter(lambda x:str.endswith(x,'bin'),os.listdir(output_dir))[-1]
+    print os.path.join(output_dir,bin_name),os.path.join(basic_path,'data.bin')
+    os.system('mv {0} {1}'.format(os.path.join(output_dir,bin_name),os.path.join(basic_path,'data.bin')))
+        
 class ShmCreator(object):
     
     def __init__(self,dispatch_id):
@@ -386,15 +404,17 @@ class ShmCreator(object):
             
 if __name__ == '__main__':
     
-#     dispatch_id = 0
-#     shm_creator = ShmCreator(dispatch_id)
-#     shm_creator.generate()
+    dispatch_id = 0
+    shm_creator = ShmCreator(dispatch_id)
+    shm_creator.generate()
     
     #for debug
-    dispatch_id = 0
-    dbapi = block_config_api()
-    pydict = dbapi.get_id(dispatch_id)
-    set_basic_path(dispatch_id)
-    startup_shm(dispatch_id)
-    load_data_tick(pydict)
-    
+#     dispatch_id = 0
+#     dbapi = block_config_api()
+#     pydict = dbapi.get_id(dispatch_id)
+#     set_basic_path(dispatch_id)
+#     create_trading_day_list(pydict)
+#     create_shm_alloc_ini(dispatch_id,pydict)
+#     startup_shm(dispatch_id)
+#     load_data_tick(pydict)
+

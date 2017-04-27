@@ -405,16 +405,16 @@ class ShmCreator(object):
             
 if __name__ == '__main__':
     
-#     dispatch_id = 0
-#     shm_creator = ShmCreator(dispatch_id)
-#     shm_creator.generate()
+    dispatch_id = 0
+    shm_creator = ShmCreator(dispatch_id)
+    shm_creator.generate()
     
     #for debug
-    dispatch_id = 0
-    dbapi = block_config_api()
-    pydict = dbapi.get_id(dispatch_id)
-    set_basic_path(dispatch_id)
-    generate_commodity_info(pydict)
+#     dispatch_id = 0
+#     dbapi = block_config_api()
+#     pydict = dbapi.get_id(dispatch_id)
+#     set_basic_path(dispatch_id)
+#     generate_commodity_info(pydict)
 #     create_trading_day_list(pydict)
 #     create_shm_alloc_ini(dispatch_id,pydict)
 #     startup_shm(dispatch_id)

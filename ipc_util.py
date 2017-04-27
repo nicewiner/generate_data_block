@@ -2,6 +2,11 @@ import zmq
 import subprocess
 import threading
 
+class RPC():
+    
+    def __init__(self):
+        pass
+    
 class IpcProxy(threading.Thread):
     
     def __init__(self,addr):

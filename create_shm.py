@@ -398,18 +398,20 @@ class ShmCreator(object):
         else:
             if force_reload:
                 load_data_tick(pydict)
-    
+                
     #to do: 1.check whether there is enough memory space 2.delete extra ipckey        
     def config_os_memory(self):
         pass
-            
-if __name__ == '__main__':
-    
-    dispatch_id = 0
+
+def create_shm_and_load_data(dispatch_id):
     shm_creator = ShmCreator(dispatch_id)
     shm_creator.generate()
     
-    #for debug
+if __name__ == '__main__':
+    
+    create_shm_and_load_data(0)
+    
+     #for debug
 #     dispatch_id = 0
 #     dbapi = block_config_api()
 #     pydict = dbapi.get_id(dispatch_id)

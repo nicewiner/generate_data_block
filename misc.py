@@ -1,4 +1,5 @@
 import subprocess
+import time
 
 def dict_to_lower(d):
     l = {}
@@ -62,7 +63,6 @@ def histrun_subprocess():
     line = 0
     while True:  
         buff = p.stdout.readline()  
-        print buff
         if buff == '' and p.poll() != None:  
             break  
         line += 1
@@ -78,6 +78,14 @@ def matplotlib_plot():
     ax1.xaxis.set_major_formatter(DateFormatter('%Y.%m.%d'))
     ax1.plot(dates,datas)
     plt.show()
+    
+def get_today():    
+    t = time.localtime()
+    return t.tm_year * 10000 + t.tm_mon * 100 + t.tm_mday
+
+def get_hourminsec():
+    t = time.localtime()
+    return t.tm_hour * 10000 + t.tm_min * 100 + t.tm_sec
     
 if __name__ == '__main__':
     matplotlib_plot()

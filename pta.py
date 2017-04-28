@@ -95,7 +95,6 @@ def generate_png_from_summary(exit_path,summary_path,engine_output,charts,fast_m
                 win_rate = float(win_num) / total_num
         else:
             engine_summary = get_summarys(engine_output).strip().split('|')
-            print engine_summary
             avg_trd_len = float(engine_summary[7].strip())
             win_rate    = float(engine_summary[5].strip()) / 100.0
         
@@ -269,8 +268,7 @@ def show_charts(basic_path):
     generate_png_from_summary(exits,summary,output,charts)
     
 if __name__ == '__main__':
-    basic_path = r'/home/xudi/autoBackTest/0/result'
-#     show_output(basic_path)
+    basic_path = r'/home/xudi/autoBackTest/0/result/xudi/20170428/115457'
     show_charts(basic_path)
     
         

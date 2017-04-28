@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 # plt.rcParams['axes.unicode_minus']=False 
 
+root_path = r'/home/xudi/autoBackTest'
+
 def parser(input):
     exit_conditions = []
     entry_conditions = []
@@ -257,7 +259,10 @@ def show_output(basic_path):
         print row
     print std
 
-def show_charts(basic_path):
+def show_charts(**argkws):
+    basic_path = os.path.sep.join((root_path,str(argkws['dispatch_id']),\
+                                   'result',argkws['user_name'],str(argkws['date']),\
+                                   str(argkws['tstamp'])))
     files = os.listdir(basic_path)
     exits  = os.path.join(basic_path,filter(lambda x: str.endswith(x,'exit_list.csv'),files)[0])
     summary = os.path.join(basic_path,filter(lambda x: str.endswith(x,'summary.csv'),files)[0])
@@ -266,9 +271,10 @@ def show_charts(basic_path):
     if not os.path.exists(charts):
         os.mkdir(charts)
     generate_png_from_summary(exits,summary,output,charts)
+    return 0
     
 if __name__ == '__main__':
-    basic_path = r'/home/xudi/autoBackTest/0/result/xudi/20170428/115457'
-    show_charts(basic_path)
+    
+    show_charts(dispatch_id = 0,user_name = 'xudi',date = 20170428, tstamp = 115457)
     
         

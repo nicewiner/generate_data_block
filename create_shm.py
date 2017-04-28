@@ -3,7 +3,7 @@ import os
 import ConfigParser
 import collections
 from config_vars import CFFEXBreak, CommodityInfo, IndicatorIDs, GlobalVar, Ticker
-from redis_block_config import block_config_api, Dates
+from redis_config import block_config_api, Dates
  
 g_v = GlobalVar()
 num_of_trading_days = 0
@@ -378,7 +378,6 @@ class ShmCreator(object):
         pydict = dbapi.get_id(self.id)
         if os.path.exists(self.basic_path):
             print 'config files already created'
-            pass
         else:
             generate_break(pydict)
             generate_commodity_info(pydict)
@@ -393,23 +392,26 @@ class ShmCreator(object):
         ipc_key = scp.get('SHM','ipc_key')
         
         if not ipc_exist(ipc_key):
-            startup_shm(self.id)
+            ret = startup_shm(self.id)
+            if ret < 0:
+                return -1
             load_data_tick(pydict)
         else:
             if force_reload:
                 load_data_tick(pydict)
-                
+        return 0
     #to do: 1.check whether there is enough memory space 2.delete extra ipckey        
     def config_os_memory(self):
         pass
 
-def create_shm_and_load_data(dispatch_id):
+def create_shm_and_load_data(**argkws):
+    dispatch_id = argkws['dispatch_id']
     shm_creator = ShmCreator(dispatch_id)
     shm_creator.generate()
     
 if __name__ == '__main__':
     
-    create_shm_and_load_data(0)
+    create_shm_and_load_data(dipatch_id = 0)
     
      #for debug
 #     dispatch_id = 0

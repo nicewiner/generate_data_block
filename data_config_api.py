@@ -1,8 +1,8 @@
 import os
-import redis_block_config
+import redis_config
 import argparse
 import copy
-from redis_block_config import Dates
+from redis_config import Dates
 from misc import dict_to_lower
 
 basic_indicators = map(lambda x:str.lower(x),['LastPrice','Volume','BidPrice','BidVolume','AskPrice','AskVolume','OpenInterest'])
@@ -47,7 +47,7 @@ def get_instrument_list(input_inss):
     
 def check_or_add_db(arg_dict):
     arg_dict = dict_to_lower(arg_dict)
-    db_api = redis_block_config.block_config_api()
+    db_api = redis_config.block_config_api()
     re = db_api.belong_to(arg_dict)
     if re != -1:
         return re
@@ -60,6 +60,19 @@ def check_or_add_db(arg_dict):
         db_api.set_id(new_id,arg_dict)
         return new_id
     
+def write_db(**arg_dict):
+    
+    if verify(arg_dict) < 0:
+        print 'input format error'
+        return -1
+    
+    arg_dict['indicators'] = get_indicator_list(arg_dict['indicators'])
+    arg_dict['instruments'] = get_instrument_list(arg_dict['instruments'])
+    arg_dict = dict_to_lower(arg_dict)
+    print 'arg_dict = ',arg_dict
+    
+    id = check_or_add_db(arg_dict)
+    return id
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -73,16 +86,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     arg_dict = vars(args)
 
-    if verify(arg_dict) < 0:
-        print 'input format error'
-        exit(-1)
-
-    adjust = int(arg_dict['adjust'])
-    arg_dict['indicators'] = get_indicator_list(arg_dict['indicators'])
-    arg_dict['instruments'] = get_instrument_list(arg_dict['instruments'])
-    arg_dict = dict_to_lower(arg_dict)
-    print 'arg_dict = ',arg_dict
-    
-    id = check_or_add_db(arg_dict)
-    print 'dispathed id = ',id
+    print write_db(arg_dict)
     

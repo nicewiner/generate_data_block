@@ -5,7 +5,8 @@ from create_shm import create_shm_and_load_data
 from data_config_api import write_db
 from backtest import call_backtest
 from pta import show_charts
-from misc import get_today, get_hourminsec
+from redis_config import ipc_db_api
+from misc import get_today
 
 root_path = r'/home/xudi/autoBackTest'
 
@@ -14,6 +15,7 @@ class RPC_CLIENT(object):
     def __init__(self,username):
         self.username = username
         self.pid      = os.getpid()
+        self.redis_api = ipc_db_api(db_addr = '127.0.0.1',db_port = 6379,db_name = 3)
         
     def connect(self,recv_addr,send_addr):
         self.ctx  = zmq.Context(1)
@@ -42,14 +44,17 @@ class RPC_CLIENT(object):
         while True:
             recv_obj = self.recv_socket.recv_json()
             status = recv_obj['status']
+            cmd    = recv_obj['key']
             if status:
-                pass
+                redis_key = self.redis_api.get_key(cmd['date'], cmd['username'], cmd['pid'], cmd['requestID'], cmd['funcName'])
+                self.redis_api.set_value(redis_key,str(status == 0))
         
 class RPC_SERVER(threading.Thread):
     
     def __init__(self,callbacks):
         super(RPC_SERVER, self).__init__()
         self.pid = os.getpid()
+        self.redis_api = ipc_db_api()
         self.callbacks = callbacks
         
     def connect(self,recv_addr,send_addr):
@@ -77,8 +82,12 @@ class RPC_SERVER(threading.Thread):
             argkws = cmd['paras']
             if cmd is not None:
                 ret = self.callbacks[cmd['funcName']](argkws)
-                key = ':'.join( (cmd['date'],cmd['username'],cmd['pid'],cmd['requestID'],cmd['funcName']))
+                key = {k:v for k,v in cmd.iteritems() if k != 'paras'}
                 send_pyobj = {'key':key,'status':ret == 0}
+                
+                redis_key = self.redis_api.get_key(cmd['date'], cmd['username'], cmd['pid'], cmd['requestID'], cmd['funcName'])
+                self.redis_api.set_value(redis_key,str(ret))
+    
                 self.send_socket.send_json(send_pyobj)
                 
     def run(self):

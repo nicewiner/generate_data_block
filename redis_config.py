@@ -10,7 +10,29 @@ from sqlalchemy import Column, Integer
 from sqlalchemy import Table
 from config_vars import  Dates
 from misc import dict_to_lower,unicode2str
-        
+
+class ipc_db_api(object):
+    
+    def __init__(self,db_addr = '127.0.0.1',db_port = 6379,db_name = 2):
+        self.iredis = redis.Redis(host = db_addr ,
+                                  port = db_port,
+                                  db   = db_name)
+    
+    def get_key(self,date,username,pid,requestID,funcName):
+        return ':'.join((date,username,pid,requestID,funcName))
+    
+    def set_value(self,key,**value):
+        json_str = json.dumps(value)
+        self.iredis.set(key,json_str)
+    
+    def get_value(self,key):
+        if self.iredis.exists(key):
+            value = self.iredis.get(key)
+        else:
+            return None
+        pydict = json.loads(value)
+        return unicode2str(pydict)
+            
 class block_config_api(object):
     
     def __init__(self,db_addr = '127.0.0.1',db_port = 6379,db_name = 1):

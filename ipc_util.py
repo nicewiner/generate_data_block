@@ -41,6 +41,12 @@ class PRC_Clinet(threading.Thread):
         self.recv_socket = self.ctx.socket(zmq.PULL)
         self.recv_socket.set_hwm(0)
         self.recv_socket.connect(recv_addr)
+    
+    def get_cmd_key(self,username,requestID,funcName):
+        return self.redis_api.get_key(get_today(),username,self.pid,requestID,funcName)
+    
+    def get_cmd_return_value(self,key):
+        return self.redis_api.get_value(key)
         
     def create_cmd(self,username,requestID,funcName,**argkws):
         today = get_today()
@@ -219,15 +225,24 @@ def web_server_start():
     funcName  = 'config_data'
     cmd = rpc_client.create_cmd(username, requestID, funcName, **pydict)
     print 'send cmd = ',cmd
-    
     rpc_client.send_cmd(cmd)
+    
+    last_cmd_key = rpc_client.get_cmd_key(username, requestID, funcName)
+    last_cmd_value = rpc_client.get_cmd_return_value(last_cmd_key)
+    if last_cmd_value is not None:
+        requestID = 1
+        funcName  = 'create_shm'
+        cmd = rpc_client.create_cmd(username, requestID, funcName, dispatch_id = 0)
+        print 'send cmd = ',cmd
+        rpc_client.send_cmd(cmd)
+    
     while True:
         time.sleep(10)
 
 def cpp_server_start(block = True):
     
     callbacks = {}
-    callbacks['creat_shm'] = create_shm_block
+    callbacks['create_shm'] = create_shm_block
     callbacks['backtest'] = backtest
     callbacks['config_data'] = config_web_data
     

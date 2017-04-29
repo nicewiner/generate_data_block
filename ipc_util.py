@@ -12,6 +12,18 @@ from misc import get_today
 
 root_path = r'/home/xudi/autoBackTest'
 
+def getUploadAddr_front():
+    return r"ipc:///home/xudi/tmp/server2web_frontend"
+
+def getDownloadAddr_front():
+    return r"ipc:///home/xudi/tmp/web2server_frontend"
+    
+def getUploadAddr_back():
+    return r"ipc:///home/xudi/tmp/server2web_backend"
+
+def getDownloadAddr_back():
+    return r"ipc:///home/xudi/tmp/web2server_backend"
+
 class PRC_Clinet(threading.Thread):
     
     def __init__(self,username):
@@ -24,9 +36,11 @@ class PRC_Clinet(threading.Thread):
         self.ctx  = zmq.Context(1)
         
         self.send_socket = self.ctx.socket(zmq.PUSH)
+        self.send_socket.set_hwm(0)
         self.send_socket.connect(send_addr)
         
         self.recv_socket = self.ctx.socket(zmq.PULL)
+        self.recv_socket.set_hwm(0)
         self.recv_socket.connect(recv_addr)
         
     def create_cmd(self,requestID,funcName,**argkws):
@@ -41,7 +55,7 @@ class PRC_Clinet(threading.Thread):
         return extra_para_dict
         
     def send_cmd(self,cmd):
-        self.socket.send_json(cmd)
+        self.send_socket.send_json(cmd)
         
     def recv_back(self):
         while True:
@@ -68,9 +82,11 @@ class RPC_Server(threading.Thread):
         self.ctx  = zmq.Context(1)
         
         self.recv_socket = self.ctx.socket(zmq.PULL)
+        self.recv_socket.set_hwm(0)
         self.recv_socket.connect(recv_addr)
         
         self.send_socket = self.ctx.socket(zmq.PUSH)
+        self.send_socket.set_hwm(0)
         self.send_socket.connect(send_addr)
         
     def verify_cmd(self,cmd):
@@ -106,12 +122,12 @@ class IpcProxy(threading.Thread):
     def __init__(self,direction = 'web2server'):
         super(IpcProxy, self).__init__()
         if direction == 'web2server':
-            self.stream_direction = 'web2server'
+            self.frontend_addr = getDownloadAddr_front()
+            self.backend_addr  = getDownloadAddr_back()
         else:
-            self.stream_direction = 'server2web'
-        self.frontend_addr = r"ipc://~/tmp/{0}_frontend".format(self.stream_direction)
-        self.backend_addr  = r"ipc://~/tmp/{0}_backend".format(self.stream_direction)
-    
+            self.frontend_addr = getUploadAddr_front()
+            self.backend_addr  = getUploadAddr_back()
+
     def get_frontend_addr(self):
         return self.frontend_addr
     
@@ -120,13 +136,21 @@ class IpcProxy(threading.Thread):
         
     def set_proxy(self):
         context = zmq.Context(1)
-        frontend = context.socket(zmq.ROUTER)
+        frontend = context.socket(zmq.PULL)
+        frontend.set_hwm(0)
         frontend.bind(self.frontend_addr)
     
-        backend  = context.socket(zmq.DEALER)
+        backend  = context.socket(zmq.PUSH)
+        backend.set_hwm(0)
         backend.bind(self.backend_addr)
     
-        zmq.proxy(frontend, backend)
+        print 'build proxy'
+        print 'front addr = ',self.frontend_addr
+        print 'back addr = ',self.backend_addr
+        
+        while True:
+            msg = frontend.recv()
+            backend.send(msg)
     
         frontend.close()
         backend.close()
@@ -183,6 +207,7 @@ def web_server_start():
     requestID = 0
     funcName  = 'create_shm'
     cmd = rpc_client.create_cmd(requestID, funcName)
+    print 'send cmd = ',cmd
     rpc_client.send_cmd(cmd)
 
 def cpp_server_start(block = True):
@@ -201,6 +226,7 @@ def cpp_server_start(block = True):
     
     cpp_server.connect(recv_addr, send_addr)
     
+    print 'ready to recv cmd'
     cpp_server.start()
     
     if block:
@@ -235,7 +261,6 @@ if __name__ == '__main__':
     elif arg_dict['webServer']:
         web_server_start() 
     
-    return 0
     
     
     

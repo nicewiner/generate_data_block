@@ -60,21 +60,13 @@ def check_or_add_db(arg_dict):
         db_api.set_id(new_id,arg_dict)
         return new_id
     
-def write_db(**arg_dict):
-    
-    if verify(arg_dict) < 0:
-        print 'input format error'
-        return -1
-    
-    arg_dict['indicators'] = get_indicator_list(arg_dict['indicators'])
-    arg_dict['instruments'] = get_instrument_list(arg_dict['instruments'])
-    arg_dict = dict_to_lower(arg_dict)
-    print 'arg_dict = ',arg_dict
+def config_data(**arg_dict):
     
     id = check_or_add_db(arg_dict)
     return id
-    
+
 if __name__ == '__main__':
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('-start_date',dest = 'start_date',nargs = '?',type = int)
     parser.add_argument('-end_date',dest = 'end_date',nargs = '?',type = int)
@@ -85,6 +77,15 @@ if __name__ == '__main__':
     parser.add_argument('-instruments',dest = 'instruments',nargs = '?',type = str)
     args = parser.parse_args()
     arg_dict = vars(args)
-
-    print write_db(arg_dict)
+    
+    if verify(arg_dict) < 0:
+        print 'input format error'
+        exit(-1)
+    
+    arg_dict['indicators'] = get_indicator_list(arg_dict['indicators'])
+    arg_dict['instruments'] = get_instrument_list(arg_dict['instruments'])
+    arg_dict = dict_to_lower(arg_dict)
+    print 'arg_dict = ',arg_dict
+    
+    print config_data(**arg_dict)
     

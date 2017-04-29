@@ -4,11 +4,11 @@ import os
 import argparse
 import time
 from create_shm import create_shm_and_load_data
-from data_center_config import write_db
+from data_center_config import config_data
 from backtest import call_backtest
 from pta import show_charts
 from redis_api import ipc_db_api
-from misc import get_today
+from misc import get_today,unicode2str
 
 root_path = r'/home/xudi/autoBackTest'
 
@@ -26,9 +26,8 @@ def getDownloadAddr_back():
 
 class PRC_Clinet(threading.Thread):
     
-    def __init__(self,username):
+    def __init__(self):
         super(PRC_Clinet, self).__init__()
-        self.username = username
         self.pid      = os.getpid()
         self.redis_api = ipc_db_api(db_addr = '127.0.0.1',db_port = 6379,db_name = 3)
         
@@ -43,11 +42,11 @@ class PRC_Clinet(threading.Thread):
         self.recv_socket.set_hwm(0)
         self.recv_socket.connect(recv_addr)
         
-    def create_cmd(self,requestID,funcName,**argkws):
+    def create_cmd(self,username,requestID,funcName,**argkws):
         today = get_today()
-        key = '{0}:{1}:{2}:{3}'.format(today,self.username,requestID,funcName)
+        key = '{0}:{1}:{2}:{3}'.format(today,username,requestID,funcName)
         hashv = hash(key)
-        extra_para_dict = {'date':today,'username':self.username,\
+        extra_para_dict = {'date':today,'username':username,\
                            'requestID':requestID,'funcName':funcName,\
                            'hashv':hashv,'pid':self.pid
                            }
@@ -59,13 +58,17 @@ class PRC_Clinet(threading.Thread):
         
     def recv_back(self):
         while True:
-            recv_obj = self.recv_socket.recv_json()
-            print recv_obj
-            status = recv_obj['status']
-            cmd    = recv_obj['key']
+            recv_obj = unicode2str( self.recv_socket.recv_json() )
+            print 'recv reply = ',recv_obj
+            try:
+                status = recv_obj['status']
+                cmd    = recv_obj['key']
+                ret    = recv_obj['ret']
+            except:
+                continue
             if status:
                 redis_key = self.redis_api.get_key(cmd['date'], cmd['username'], cmd['pid'], cmd['requestID'], cmd['funcName'])
-                self.redis_api.set_value(redis_key,str(status == 0))
+                self.redis_api.set_value(redis_key,ret = recv_obj['ret'])
                 
     def run(self):
         self.recv_back()
@@ -75,7 +78,7 @@ class RPC_Server(threading.Thread):
     def __init__(self,callbacks):
         super(RPC_Server, self).__init__()
         self.pid = os.getpid()
-        self.redis_api = ipc_db_api()
+        self.redis_api = ipc_db_api(db_addr = '127.0.0.1',db_port = 6379,db_name = 2)
         self.callbacks = callbacks
         
     def connect(self,recv_addr,send_addr):
@@ -101,18 +104,20 @@ class RPC_Server(threading.Thread):
        
     def recv_cmd(self):
         while True:
-            cmd = self.recv_socket.recv_json()
-            print cmd
+            cmd = unicode2str( self.recv_socket.recv_json() )
             argkws = cmd['paras']
             if (cmd is not None) and ( cmd['funcName'] in self.callbacks ):
-                ret = self.callbacks[cmd['funcName']](argkws)
+                print 'args = ',cmd['paras']
+                ret = self.callbacks[cmd['funcName']](**argkws)
+                print 'ret = ',ret
                 key = {k:v for k,v in cmd.iteritems() if k != 'paras'}
-                send_pyobj = {'key':key,'status':ret == 0}
+                send_pyobj = {'key':key,'ret':ret,'status':ret == 0}
                 
                 redis_key = self.redis_api.get_key(cmd['date'], cmd['username'], cmd['pid'], cmd['requestID'], cmd['funcName'])
-                self.redis_api.set_value(redis_key,str(ret))
+                self.redis_api.set_value(redis_key,ret = ret)
     
                 self.send_socket.send_json(send_pyobj)
+                print 'send to web = ',send_pyobj
                 
     def run(self):
         self.recv_cmd()   
@@ -160,13 +165,13 @@ class IpcProxy(threading.Thread):
         self.set_proxy()
 
 ## send dispatch_id to cli
-def save_shm_block_config(**argkws):
-    ret = write_db(argkws)
+def config_web_data(**argkws):
+    ret = config_data(**argkws)
     return ret
 
 ## send create status to cli
 def create_shm_block(**argkws):
-    ret = create_shm_and_load_data(argkws)
+    ret = create_shm_and_load_data(**argkws)
     return ret
 
 def download_global_config(**argkws):
@@ -193,8 +198,13 @@ def backtest(**argkws):
 
 def web_server_start():
     
+    from redis_api import block_config_api
+    block_config = block_config_api()
+    id = block_config.list_ids()[0]
+    pydict = block_config.get_id(id)
+    
     username = 'xudi'
-    rpc_client = PRC_Clinet('xudi')
+    rpc_client = PRC_Clinet()
     
     uploadProxy = IpcProxy('server2web')
     recv_addr = uploadProxy.backend_addr
@@ -203,18 +213,23 @@ def web_server_start():
     send_addr = downloadProxy.frontend_addr
     
     rpc_client.connect(recv_addr, send_addr)
+    rpc_client.start()
     
     requestID = 0
-    funcName  = 'create_shm'
-    cmd = rpc_client.create_cmd(requestID, funcName)
+    funcName  = 'config_data'
+    cmd = rpc_client.create_cmd(username, requestID, funcName, **pydict)
     print 'send cmd = ',cmd
+    
     rpc_client.send_cmd(cmd)
+    while True:
+        time.sleep(10)
 
 def cpp_server_start(block = True):
     
     callbacks = {}
     callbacks['creat_shm'] = create_shm_block
     callbacks['backtest'] = backtest
+    callbacks['config_data'] = config_web_data
     
     cpp_server = RPC_Server(callbacks)
     
@@ -248,7 +263,7 @@ if __name__ == '__main__':
     parser.add_argument('-upProxy',dest = 'upStream',action = 'store_true',default = False)
     parser.add_argument('-downProxy',dest = 'downStream',action = 'store_true',default = False)
     parser.add_argument('-cppServer',dest = 'cppServer',action = 'store_true',default = False)
-    parser.add_argument('-webServer',dest = 'webServer',action = 'store_true',default = False)
+    parser.add_argument('-webClient',dest = 'webClient',action = 'store_true',default = False)
     args = parser.parse_args()
     arg_dict = vars(args)
     
@@ -258,7 +273,7 @@ if __name__ == '__main__':
         set_proxy('web2server')
     elif arg_dict['cppServer']:
         cpp_server_start()
-    elif arg_dict['webServer']:
+    elif arg_dict['webClient']:
         web_server_start() 
     
     

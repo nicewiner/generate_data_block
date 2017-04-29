@@ -19,7 +19,7 @@ class ipc_db_api(object):
                                   db   = db_name)
     
     def get_key(self,date,username,pid,requestID,funcName):
-        return ':'.join((date,username,pid,requestID,funcName))
+        return ':'.join((str(date),username,str(pid),str(requestID),funcName))
     
     def set_value(self,key,**value):
         json_str = json.dumps(value)

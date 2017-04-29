@@ -1,6 +1,8 @@
 import zmq
 import threading
 import os
+import argparse
+import time
 from create_shm import create_shm_and_load_data
 from data_config_api import write_db
 from backtest import call_backtest
@@ -10,9 +12,10 @@ from misc import get_today
 
 root_path = r'/home/xudi/autoBackTest'
 
-class RPC_CLIENT(object):
+class PRC_Clinet(threading.Thread):
     
     def __init__(self,username):
+        super(PRC_Clinet, self).__init__()
         self.username = username
         self.pid      = os.getpid()
         self.redis_api = ipc_db_api(db_addr = '127.0.0.1',db_port = 6379,db_name = 3)
@@ -43,16 +46,20 @@ class RPC_CLIENT(object):
     def recv_back(self):
         while True:
             recv_obj = self.recv_socket.recv_json()
+            print recv_obj
             status = recv_obj['status']
             cmd    = recv_obj['key']
             if status:
                 redis_key = self.redis_api.get_key(cmd['date'], cmd['username'], cmd['pid'], cmd['requestID'], cmd['funcName'])
                 self.redis_api.set_value(redis_key,str(status == 0))
+                
+    def run(self):
+        self.recv_back()
         
-class RPC_SERVER(threading.Thread):
+class RPC_Server(threading.Thread):
     
     def __init__(self,callbacks):
-        super(RPC_SERVER, self).__init__()
+        super(RPC_Server, self).__init__()
         self.pid = os.getpid()
         self.redis_api = ipc_db_api()
         self.callbacks = callbacks
@@ -79,8 +86,9 @@ class RPC_SERVER(threading.Thread):
     def recv_cmd(self):
         while True:
             cmd = self.recv_socket.recv_json()
+            print cmd
             argkws = cmd['paras']
-            if cmd is not None:
+            if (cmd is not None) and ( cmd['funcName'] in self.callbacks ):
                 ret = self.callbacks[cmd['funcName']](argkws)
                 key = {k:v for k,v in cmd.iteritems() if k != 'paras'}
                 send_pyobj = {'key':key,'status':ret == 0}
@@ -95,12 +103,12 @@ class RPC_SERVER(threading.Thread):
     
 class IpcProxy(threading.Thread):
     
-    def __init__(self,direction = 1):
+    def __init__(self,direction = 'web2server'):
         super(IpcProxy, self).__init__()
-        if direction == 1:
-            self.stream_direction = 'employee'
+        if direction == 'web2server':
+            self.stream_direction = 'web2server'
         else:
-            self.stream_direction = 'worker'
+            self.stream_direction = 'server2web'
         self.frontend_addr = r"ipc://~/tmp/{0}_frontend".format(self.stream_direction)
         self.backend_addr  = r"ipc://~/tmp/{0}_backend".format(self.stream_direction)
     
@@ -137,6 +145,12 @@ def create_shm_block(**argkws):
     ret = create_shm_and_load_data(argkws)
     return ret
 
+def download_global_config(**argkws):
+    pass
+
+def upload_backetest_result(**argskws):
+    pass
+
 def histrun(**argkws):
     ret = call_backtest(**argkws)
     return ret
@@ -153,8 +167,75 @@ def backtest(**argkws):
         return ret2
     return ret
 
-if __name__ == '__main__':
+def web_server_start():
+    
+    username = 'xudi'
+    rpc_client = PRC_Clinet('xudi')
+    
+    uploadProxy = IpcProxy('server2web')
+    recv_addr = uploadProxy.backend_addr
+    
+    downloadProxy = IpcProxy('web2server')
+    send_addr = downloadProxy.frontend_addr
+    
+    rpc_client.connect(recv_addr, send_addr)
+    
+    requestID = 0
+    funcName  = 'create_shm'
+    cmd = rpc_client.create_cmd(requestID, funcName)
+    rpc_client.send_cmd(cmd)
+
+def cpp_server_start(block = True):
+    
     callbacks = {}
+    callbacks['creat_shm'] = create_shm_block
+    callbacks['backtest'] = backtest
+    
+    cpp_server = RPC_Server(callbacks)
+    
+    uploadProxy = IpcProxy('server2web')
+    send_addr = uploadProxy.frontend_addr
+    
+    downloadProxy = IpcProxy('web2server')
+    recv_addr = downloadProxy.backend_addr
+    
+    cpp_server.connect(recv_addr, send_addr)
+    
+    cpp_server.start()
+    
+    if block:
+        while True:
+            time.sleep(10)
+
+def set_proxy(proxy_type = 'web2server',block = True):
+    
+    proxy = IpcProxy(proxy_type)
+    proxy.start()
+    
+    if block:
+        while True:
+            time.sleep(10)
+    
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-upProxy',dest = 'upStream',action = 'store_true',default = False)
+    parser.add_argument('-downProxy',dest = 'downStream',action = 'store_true',default = False)
+    parser.add_argument('-cppServer',dest = 'cppServer',action = 'store_true',default = False)
+    parser.add_argument('-webServer',dest = 'webServer',action = 'store_true',default = False)
+    args = parser.parse_args()
+    arg_dict = vars(args)
+    
+    if arg_dict['upStream']:
+        set_proxy('server2web')
+    elif arg_dict['downStream']:
+        set_proxy('web2server')
+    elif arg_dict['cppServer']:
+        cpp_server_start()
+    elif arg_dict['webServer']:
+        web_server_start() 
+    
+    return 0
     
     
     

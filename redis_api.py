@@ -8,7 +8,7 @@ from future_mysql import dbBase
 
 from sqlalchemy import Column, Integer
 from sqlalchemy import Table
-from config_vars import  Dates
+from const_vars import  Dates
 from misc import dict_to_lower,unicode2str
 
 class ipc_db_api(object):
@@ -39,7 +39,7 @@ class block_config_api(object):
         self.iredis = redis.Redis(host = db_addr ,
                                   port = db_port,
                                   db   = db_name)
-        self.prefix = 'block_config'
+        self.prefix = 'data_center_config'
         self.is_trading_date = False
         
         self.dates = Dates()

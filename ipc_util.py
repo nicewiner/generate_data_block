@@ -4,10 +4,10 @@ import os
 import argparse
 import time
 from create_shm import create_shm_and_load_data
-from data_config_api import write_db
+from data_center_config import write_db
 from backtest import call_backtest
 from pta import show_charts
-from redis_config import ipc_db_api
+from redis_api import ipc_db_api
 from misc import get_today
 
 root_path = r'/home/xudi/autoBackTest'

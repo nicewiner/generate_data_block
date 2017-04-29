@@ -1,8 +1,8 @@
 import os
-import redis_config
+import redis_api
 import argparse
 import copy
-from redis_config import Dates
+from redis_api import Dates
 from misc import dict_to_lower
 
 basic_indicators = map(lambda x:str.lower(x),['LastPrice','Volume','BidPrice','BidVolume','AskPrice','AskVolume','OpenInterest'])
@@ -47,7 +47,7 @@ def get_instrument_list(input_inss):
     
 def check_or_add_db(arg_dict):
     arg_dict = dict_to_lower(arg_dict)
-    db_api = redis_config.block_config_api()
+    db_api = redis_api.block_config_api()
     re = db_api.belong_to(arg_dict)
     if re != -1:
         return re

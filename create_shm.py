@@ -2,8 +2,8 @@
 import os
 import ConfigParser
 import collections
-from config_vars import CFFEXBreak, CommodityInfo, IndicatorIDs, GlobalVar, Ticker
-from redis_config import block_config_api, Dates
+from const_vars import CFFEXBreak, CommodityInfo, IndicatorIDs, GlobalVar, Ticker
+from redis_api import block_config_api, Dates
  
 g_v = GlobalVar()
 num_of_trading_days = 0
@@ -269,7 +269,7 @@ def load_data_tick(pydict):
     
     from future_mysql.data_import import cffex_if
     from future_mysql.trading_day_list import futureOrder
-    from config_vars import Dates
+    from const_vars import Dates
     import ShmPython
     import pandas as pd
     import numpy as np
